@@ -42,6 +42,10 @@ use tokio_rustls::{
 use url::{Host, Url};
 
 const MAX_CHUNK_SIZE: usize = 65_535 - mem::size_of::<u16>();
+const SUCCESS_SIGNATURE: u8 = 0x70;
+const RECORD_SIGNATURE: u8 = 0x71;
+const IGNORED_SIGNATURE: u8 = 0x7e;
+const FAILURE_SIGNATURE: u8 = 0x7f;
 
 #[cfg(test)]
 mod reuse_tests;
@@ -264,9 +268,11 @@ impl Connection {
         if self.pending_responses == 0 {
             return Err(Error::UnexpectedMessage("unsolicited Bolt response".into()));
         }
-        match bytes.get(1) {
-            Some(0x70 | 0x7f | 0x7e) => self.pending_responses -= 1,
-            Some(0x71) => {}
+        match bytes.get(1).copied() {
+            Some(SUCCESS_SIGNATURE | FAILURE_SIGNATURE | IGNORED_SIGNATURE) => {
+                self.pending_responses -= 1
+            }
+            Some(RECORD_SIGNATURE) => {}
             _ => {
                 return Err(Error::UnexpectedMessage(
                     "unknown Bolt response signature".into(),

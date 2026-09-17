@@ -22,11 +22,13 @@ async fn connection_with_timeout(recv_timeout: Duration) -> (Connection, TcpStre
 #[tokio::test]
 async fn record_does_not_complete_request_but_all_terminal_summaries_do() {
     let (mut connection, _peer) = connection().await;
-    for signature in [0x70, 0x7f, 0x7e] {
+    for signature in [SUCCESS_SIGNATURE, FAILURE_SIGNATURE, IGNORED_SIGNATURE] {
         assert!(connection.is_reusable());
         connection.send(BoltRequest::reset()).await.unwrap();
         assert!(!connection.is_reusable());
-        connection.complete_response(&[0xb1, 0x71, 0x90]).unwrap();
+        connection
+            .complete_response(&[0xb1, RECORD_SIGNATURE, 0x90])
+            .unwrap();
         assert!(!connection.is_reusable());
         connection
             .complete_response(&[0xb1, signature, 0xa0])
